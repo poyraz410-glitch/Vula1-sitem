@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VULA — Sahiplik Altyapısı (Canlı Demo)</title>
+<style>
+:root{--bg:#070b14;--bg2:#0b1220;--card:#101a2e;--card2:#141f36;--line:rgba(255,255,255,.08);
+--txt:#e8eefc;--mut:#93a3c4;--acc:#22e0a1;--acc2:#5b8cff;--gold:#f5c04e;--red:#ff6b6b;--org:#ffa94d}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55;padding-bottom:80px}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:14px 0 4px}
+h2{font-size:1.1rem;margin:18px 0 8px}
+.mut{color:var(--mut);font-size:.85rem}
+.card{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+input,select,textarea{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:12px;font-size:1rem;margin-bottom:10px;font-family:inherit}
+button,.btn{background:var(--acc);color:#04160e;border:none;font-weight:700;padding:12px 18px;border-radius:12px;font-size:.95rem;cursor:pointer;width:100%;font-family:inherit}
+button:disabled{opacity:.4}
+.btn2{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.btn3{background:var(--acc2);color:#fff}
+.btnred{background:var(--red);color:#fff}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.tag{display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:999px}
+.t-locked{background:rgba(255,169,77,.15);color:var(--org)}
+.t-active{background:rgba(34,224,161,.15);color:var(--acc)}
+.t-lost{background:rgba(255,107,107,.15);color:var(--red)}
+.t-stolen{background:#ff6b6b;color:#fff}
+.t-found{background:rgba(91,140,255,.15);color:var(--acc2)}
+.id{font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--acc)}
+.log{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.8rem;color:var(--mut);margin-top:8px}
+.log b{color:var(--txt)}
+.stat b{display:block;font-size:1.3rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+canvas.qr{display:block;margin:8px auto;background:#fff;padding:8px;border-radius:12px}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(7,11,20,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;z-index:50}
+nav.tabs button{background:none;color:var(--mut);border:none;padding:10px 4px;font-size:.68rem;font-weight:600;flex:1}
+nav.tabs button.on{color:var(--acc)}
+nav.tabs .ic{font-size:1.25rem;display:block;margin-bottom:2px}
+.hidden{display:none}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--acc);padding:12px 18px;border-radius:12px;font-size:.85rem;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.msg{border-left:3px solid var(--acc2);padding:8px 12px;background:var(--bg2);border-radius:0 10px 10px 0;margin-bottom:8px;font-size:.85rem}
+.hero{background:radial-gradient(600px 300px at 80% 0%,rgba(91,140,255,.15),transparent),radial-gradient(500px 250px at 0% 100%,rgba(34,224,161,.1),transparent);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:14px}
+.hero b{font-size:1.15rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- GİRİŞ -->
+<div id="v-login">
+  <div class="hero"><b>VU<span style="color:var(--acc)">LA</span></b><br><span class="mut">Sahiplik altyapısı — canlı demo<br>Asset ID: kimlik → sahiplik → bağlam → kontrol</span></div>
+  <div class="card">
+    <h2>Hesap aç / giriş</h2>
+    <input id="in-name" placeholder="Adın (örn: Ayşe)">
+    <input id="in-mail" placeholder="E-posta (isteğe bağlı)">
+    <button onclick="login()">Başla</button>
+    <p class="mut" style="margin-top:8px">Veriler yalnızca bu cihazda saklanır.</p>
+  </div>
+</div>
+
+<!-- UYGULAMA -->
+<div id="v-app" class="hidden">
+
+  <!-- PANEL -->
+  <div id="t-panel">
+    <div class="hero"><b id="hello">Merhaba</b><br><span class="mut" id="tierline"></span></div>
+    <div class="card"><div class="grid3">
+      <div class="stat"><b id="st-items">0</b><span class="mut">Eşya</span></div>
+      <div class="stat"><b id="st-lost">0</b><span class="mut">Kayıp</span></div>
+      <div class="stat"><b id="st-found">0</b><span class="mut">Bulundu</span></div>
+    </div></div>
+    <div class="card">
+      <h2>Eşyalarım</h2>
+      <div id="myitems"></div>
+      <button class="btn2" onclick="go('t-ekle')">＋ Yeni Asset ID oluştur</button>
+    </div>
+    <div class="card">
+      <h2>Bildirimler</h2>
+      <div id="inbox"></div>
+    </div>
+  </div>
+
+  <!-- EKLE -->
+  <div id="t-ekle" class="hidden">
+    <h1>Asset ID Oluştur</h1>
+    <p class="mut">Fabrika doğumu simülasyonu: ID üretilir ve <b>KİLİTLİ</b> durumda başlar.</p>
+    <div class="card">
+      <input id="a-name" placeholder="Eşya adı (örn: Cüzdan)">
+      <select id="a-type"><option>Kişisel</option><option>Elektronik</option><option>Tekstil</option><option>Evcil Hayvan</option><option>Diğer</option></select>
+      <input id="a-serial" placeholder="Seri / batch no (isteğe bağlı)">
+      <textarea id="a-note" rows="2" placeholder="Kritik not (kayıpta görünür: alerji, ilaç vb.)"></textarea>
+      <button onclick="addItem()">Asset ID Üret 🔒</button>
+    </div>
+    <div id="add-result"></div>
+  </div>
+
+  <!-- TARA -->
+  <div id="t-tara" class="hidden">
+    <h1>Asset ID Tara</h1>
+    <p class="mut">Bulan kişi akışı: ID okutur → bağlama göre sonuç görür. Demo için: <span class="id">VL-DEMO42</span> (kayıp), <span class="id">VL-SAFE01</span> (aktif), <span class="id">VL-HRSZ99</span> (çalıntı)</p>
+    <div class="card">
+      <input id="scan-id" placeholder="Asset ID gir (örn: VL-DEMO42)" style="text-transform:uppercase">
+      <button onclick="scan()">🔍 Tara</button>
+    </div>
+    <div id="scan-result"></div>
+  </div>
+
+  <!-- ONAYLAR -->
+  <div id="t-onay" class="hidden">
+    <h1>Sahip Onayları</h1>
+    <p class="mut">Satış izni ve buluş talepleri burada. Sahip onayı olmadan satış yok.</p>
+    <div id="reqlist"></div>
+  </div>
+
+  <!-- PROFİL -->
+  <div id="t-profil" class="hidden">
+    <h1>Profil & Tier</h1>
+    <div class="card">
+      <div class="grid3">
+        <div class="stat"><b id="p-points">0</b><span class="mut">Puan</span></div>
+        <div class="stat"><b id="p-tier" style="color:var(--gold)">🥉</b><span class="mut">Tier</span></div>
+        <div class="stat"><b id="p-badges">0</b><span class="mut">Rozet</span></div>
+      </div>
+    </div>
+    <div class="card" id="tiercards"></div>
+    <div class="card">
+      <h2>Aktivite günlüğü</h2>
+      <div id="actlog"></div>
+    </div>
+    <button class="btnred" onclick="resetAll()">Tüm demo verisini sıfırla</button>
+  </div>
+</div>
+</div>
+
+<nav class="tabs hidden" id="tabs">
+  <button data-t="t-panel" class="on" onclick="go('t-panel')"><span class="ic">🏠</span>Panel</button>
+  <button data-t="t-ekle" onclick="go('t-ekle')"><span class="ic">＋</span>Asset ID</button>
+  <button data-t="t-tara" onclick="go('t-tara')"><span class="ic">🔍</span>Tara</button>
+  <button data-t="t-onay" onclick="go('t-onay')"><span class="ic">✅</span>Onaylar</button>
+  <button data-t="t-profil" onclick="go('t-profil')"><span class="ic">👤</span>Profil</button>
+</nav>
+
+<script>
+// ---------- VERİ KATMANI ----------
+const DBKEY='vula_db_v1';
+let db=JSON.parse(localStorage.getItem(DBKEY)||'null')||{users:{},items:{},reqs:[],log:[],session:null,foundCount:0};
+const save=()=>localStorage.setItem(DBKEY,JSON.stringify(db));
+const me=()=>db.users[db.session];
+const uid=()=> 'VL-'+Math.random().toString(36).slice(2,8).toUpperCase();
+const tr=s=>({locked:'🔒 KİLİTLİ',active:'✅ Aktif',lost:'📢 KAYIP',stolen:'🚫 ÇALINTI',found:'🎉 Bulundu'}[s]||s);
+
+// Demo verisi (ilk açılışta)
+if(!localStorage.getItem(DBKEY)){
+  db.items['VL-DEMO42']={id:'VL-DEMO42',name:'Kedi "Boncuk"',type:'Evcil Hayvan',note:'Ürkektir, yaklaşmayın. Su verin.',status:'lost',owner:'demo',created:Date.now()};
+  db.items['VL-SAFE01']={id:'VL-SAFE01',name:'AirPods Pro',type:'Elektronik',note:'',status:'active',owner:'demo',created:Date.now()};
+  db.items['VL-HRSZ99']={id:'VL-HRSZ99',name:'Rolex Saat',type:'Kişisel',note:'',status:'stolen',owner:'demo2',created:Date.now()};
+  save();
+}
+
+// ---------- YARDIMCILAR ----------
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function log(txt){db.log.unshift({t:Date.now(),txt});db.log=db.log.slice(0,40);save()}
+function tierOf(p){return p>=10000?['💎 Platinum','#b78cff']:p>=2000?['🥇 Gold','#f5c04e']:p>=500?['🥈 Silver','#c0c8d8']:['🥉 Bronze','#cd7f32']}
+function give(user,pts,why){const u=db.users[user];if(!u)return;u.points+=pts;
+  u.badges=u.badges||[];const b=why.includes('buldun')?'Hızlı Buluş':'İlk Buluş';
+  if(!u.badges.includes(b))u.badges.push(b);
+  log(`${u.name}: +${pts} puan (${why})`);save()}
+function drawQR(cv,text){ // demo QR deseni
+  const n=21,cell=8;cv.width=cv.height=n*cell;const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);c.fillStyle='#000';
+  let h=0;for(const ch of text)h=(h*31+ch.charCodeAt(0))>>>0;const rnd=()=>{h=(h*1103515245+12345)>>>0;return h/4294967296};
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){if((x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9))continue;if(rnd()>.5)c.fillRect(x*cell,y*cell,cell,cell)}
+  const finder=(fx,fy)=>{c.fillRect(fx,fy,7*cell,7*cell);c.fillStyle='#fff';c.fillRect(fx+cell,fy+cell,5*cell,5*cell);c.fillStyle='#000';c.fillRect(fx+2*cell,fy+2*cell,3*cell,3*cell)};
+  finder(0,0);finder((n-7)*cell,0);finder(0,(n-7)*cell);
+}
+
+// ---------- GİRİŞ ----------
+function login(){
+  const name=document.getElementById('in-name').value.trim();
+  if(!name)return toast('Adını yaz');
+  const key=name.toLowerCase();
+  if(!db.users[key])db.users[key]={name,points:100,badges:[]};
+  db.session=key;save();
+  log(name+' giriş yaptı (+100 puan hoşgeldin)');
+  enterApp();
+}
+function enterApp(){
+  document.getElementById('v-login').classList.add('hidden');
+  document.getElementById('v-app').classList.remove('hidden');
+  document.getElementById('tabs').classList.remove('hidden');
+  renderAll();
+}
+function logout(){db.session=null;save();location.reload()}
+
+// ---------- NAVİGASYON ----------
+function go(t){
+  ['t-panel','t-ekle','t-tara','t-onay','t-profil'].forEach(x=>document.getElementById(x).classList.add('hidden'));
+  document.getElementById(t).classList.remove('hidden');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  if(t==='t-onay')renderReqs();if(t==='t-panel')renderPanel();if(t==='t-profil')renderProfil();
+  window.scrollTo(0,0);
+}
+
+// ---------- EŞYA EKLE (FABRİKA DOĞUMU) ----------
+function addItem(){
+  const name=document.getElementById('a-name').value.trim();if(!name)return toast('Eşya adı gerekli');
+  const id=uid();
+  db.items[id]={id,name,type:document.getElementById('a-type').value,serial:document.getElementById('a-serial').value,note:document.getElementById('a-note').value.trim(),status:'locked',owner:db.session,created:Date.now()};
+  log('Fabrika: '+id+' üretildi (KİLİTLİ)');save();
+  const r=document.getElementById('add-result');
+  r.innerHTML=`<div class="card"><span class="tag t-locked">KİLİTLİ</span>
+    <h2 style="margin-top:8px">${name}</h2>
+    <p>Asset ID: <span class="id">${id}</span></p>
+    <p class="mut">Bu ID henüz sahipsiz. Aktivasyon için ilk sahiplenme gerekir.</p>
+    <canvas class="qr" id="q1"></canvas>
+    <div class="row">
+      <button onclick="activate('${id}')">📲 Sahiplen (aktive et)</button>
+      <button class="btn2" onclick="factoryLock('${id}')" id="fl-${id}">🔒 Factory Lock</button>
+    </div></div>`;
+  drawQR(document.getElementById('q1'),id);
+}
+function factoryLock(id){const it=db.items[id];it.factoryLock=!it.factoryLock;save();
+  document.getElementById('fl-'+id).textContent=it.factoryLock?'🔓 Kilidi aç':'🔒 Factory Lock';
+  toast(it.factoryLock?'Factory Lock AKTİF: yetkisiz satış engellendi':'Factory Lock kaldırıldı');log(id+': Factory Lock '+(it.factoryLock?'açıldı':'kaldırıldı'))}
+function activate(id){const it=db.items[id];
+  if(it.status!=='locked')return toast('Bu ID zaten aktif!');
+  it.status='active';it.activated=Date.now();log(id+' sahiplenildi → '+me().name);save();toast('✅ Sahiplik tanımlandı: '+id);renderPanel()}
+
+// ---------- SAHİP AKSIYONLARI ----------
+function reportLost(id){const it=db.items[id];it.status='lost';it.lostAt=Date.now();log(id+' KAYIP ilan edildi → Radar bildirimi gönderildi');save();toast('📢 Radar aktif: 1 km içindeki kullanıcılara bildirim gitti');renderPanel()}
+function markStolen(id){const it=db.items[id];it.status='stolen';log(id+' KÜRESEL KARA LİSTEYE alındı');save();toast('🚫 ÇALINTI işaretlendi — ikinci el değeri sıfırlandı');renderPanel()}
+function approveFound(id){const it=db.items[id];it.status='active';const finder=it.finder;
+  if(finder&&db.users[finder])give(finder,150,'eşya buldun');me().points+=50;log(id+' sahibine teslim edildi');save();toast('Teslim onaylandı');renderPanel()}
+
+// ---------- TARAMA (BULAN KİŞİ AKIŞI) ----------
+function scan(){
+  const id=document.getElementById('scan-id').value.trim().toUpperCase();
+  const it=db.items[id];const out=document.getElementById('scan-result');
+  if(!it){out.innerHTML='<div class="card"><b>❌ Kayıt bulunamadı</b><p class="mut">Bu ID Vula sisteminde yok. Sahte olabilir.</p></div>';return}
+  const mine=it.owner===db.session;
+  let html=`<div class="card"><span class="tag t-${it.status}">${tr(it.status)}</span>
+    <h2 style="margin-top:8px">${it.name}</h2>
+    <p>Asset ID: <span class="id">${id}</span> • ${it.type}</p>`;
+  if(it.status==='stolen'){html+=`<p style="color:var(--red);font-weight:700">🚫 ÇALINTI – SATIŞ ENGELLENDİ<br><span class="mut" style="font-weight:400">Bu ürün sigortalanamaz, garanti işlemez, ikinci elde değersizdir.</span></p></div>`;
+    out.innerHTML=html;log('UYARI: '+id+' çalıntı olarak tarandı');return}
+  if(it.status==='locked'){html+=`<p class="mut">Bu ürün henüz sahiplenilmemiş (factory çıkışı bekliyor).</p></div>`;
+    out.innerHTML=html;return}
+  if(it.status==='lost'){
+    html+=`<p style="color:var(--red)">📢 Bu eşya kayıp ilanında!</p>`;
+    if(it.note)html+=`<div class="msg">📌 Kritik not: ${it.note}</div>`;
+    html+=`<p class="mut">Radar: bu okuma sahibine anlık bildirim olarak iletildi.</p>`;
+    if(!mine)html+=`<button class="btn3" onclick="foundIt('${id}')">🎉 Buldum, sahibine bildir</button>`;
+    html+='</div>';out.innerHTML=html;
+    notify(it.owner,'🔍 <b>'+id+'</b> ('+it.name+') tarandı — biri eşyanızı bulmuş olabilir.');
+    log(id+' kayıp eşya olarak tarandı (konum bildirimi gönderildi)');return}
+  // aktif eşya
+  html+=`<p class="mut">Bu ürün sahipli ve doğrulanabilir durumda.</p>`;
+  if(!mine){
+    html+=`<button class="btn2" onclick="saleReq('${id}')">💰 Satın alma / satış öncesi doğrulama talebi</button>`;
+  }else{html+=`<div class="row"><button class="btn2" onclick="reportLost('${id}')">📢 Kayıp ilan et</button><button class="btnred" onclick="markStolen('${id}')">🚫 Çalıntı işaretle</button></div>`}
+  html+='</div>';out.innerHTML=html;
+  log(id+' doğrulandı (bağlam: '+(mine?'sahip görünümü':'satış öncesi kontrol')+')');
+}
+function foundIt(id){const it=db.items[id];it.status='found';it.finder=db.session;
+  notify(it.owner,'🎉 <b>'+id+'</b> ('+it.name+') bulundu! Onayınızı bekliyor.');
+  give(db.session,25,'kayıp bildirimi');save();toast('Sahibine bildirim gönderildi +25 puan');
+  document.getElementById('scan-result').innerHTML=`<div class="card"><span class="tag t-found">Bulundu</span><h2 style="margin-top:8px">Teşekkürler!</h2><p class="mut">Sahip onayladığında +150 puan alacaksın. SafeDrop noktasına bırakabilirsin.</p></div>`;
+  log(id+' bulundu ve sahibine bildirildi')}
+function saleReq(id){const it=db.items[id];
+  db.reqs.push({id:'R'+Date.now(),item:id,type:'sale',from:db.session,ts:Date.now()});
+  notify(it.owner,'💰 <b>'+id+'</b> için satış izni talebi geldi.');
+  log(id+' için satış izni talebi oluşturuldu');save();toast('Talep sahibine iletildi')}
+
+// ---------- BİLDİRİM ----------
+function notify(user,html){const u=db.users[user];if(!u)return;u.inbox=u.inbox||[];u.inbox.unshift({html,ts:Date.now(),read:false});save();if(user===db.session)renderInbox()}
+
+// ---------- ONAYLAR ----------
+function renderReqs(){
+  const box=document.getElementById('reqlist');const mine=Object.values(db.items).filter(i=>i.owner===db.session).map(i=>i.id);
+  const reqs=db.reqs.filter(r=>mine.includes(r.item)&&r.status==='pending');
+  if(!reqs.length){box.innerHTML='<div class="card mut">Bekleyen talep yok.</div>';return}
+  box.innerHTML=reqs.map(r=>{const it=db.items[r.item];return `<div class="card"><b>${it.name}</b> <span class="id">${r.item}</span><p class="mut">${new Date(r.ts).toLocaleString('tr')}</p>
+    <div class="row"><button onclick="decide('${r.id}',true)">✅ İzin ver (geçici anahtar)</button><button class="btnred" onclick="decide('${r.id}',false)">❌ Reddet</button></div></div>`}).join('');
+}
+function decide(rid,ok){const r=db.reqs.find(x=>x.id===rid);r.status=ok?'approved':'denied';
+  const it=db.items[r.item];
+  if(ok){it.saleKey='KEY-'+Math.random().toString(36).slice(2,6).toUpperCase();it.saleKeyExp=Date.now()+3600e3;
+    notify(r.from,'✅ Satış izni onaylandı: <b>'+r.item+'</b> — geçici anahtar: <span class="id">'+it.saleKey+'</span> (1 saat geçerli)')}
+  else notify(r.from,'❌ Satış izni reddedildi: <b>'+r.item+'</b>');
+  log(r.item+' satış talebi '+(ok?'onaylandı':'reddedildi'));save();renderReqs();toast(ok?'İzin verildi':'Reddedildi')}
+
+// ---------- RENDER ----------
+function itemCard(it){const mine=it.owner===db.session;
+  let btns='';
+  if(mine){
+    if(it.status==='locked')btns=`<button onclick="activate('${it.id}')">📲 Sahiplen</button>`;
+    else if(it.status==='active')btns=`<div class="row"><button class="btn2" onclick="reportLost('${it.id}')">📢 Kayıp</button><button class="btnred" onclick="markStolen('${it.id}')">🚫 Çalıntı</button></div>`;
+    else if(it.status==='found')btns=`<button class="btn3" onclick="approveFound('${it.id}')">✅ Teslimi onayla (+50 puan)</button>`;
+  }
+  return `<div class="card"><span class="tag t-${it.status}">${tr(it.status)}</span>
+    <b style="margin-left:6px">${it.name}</b> <span class="id">${it.id}</span>
+    ${it.factoryLock?' <span class="tag t-locked">FACTORY LOCK</span>':''}
+    ${it.saleKey&&it.saleKeyExp>Date.now()?`<div class="log">🔑 Geçici satış anahtarı: <b class="id">${it.saleKey}</b></div>`:''}
+    <div style="margin-top:8px">${btns}</div></div>`}
+function renderInbox(){const u=me();u.inbox=u.inbox||[];
+  document.getElementById('inbox').innerHTML=u.inbox.length?u.inbox.slice(0,8).map(m=>`<div class="msg">${m.html}<div class="mut" style="font-size:.7rem">${new Date(m.ts).toLocaleTimeString('tr')}</div></div>`).join(''):'<span class="mut">Bildirim yok.</span>'}
+function renderPanel(){const u=me();const mine=Object.values(db.items).filter(i=>i.owner===db.session);
+  document.getElementById('hello').textContent='Merhaba, '+u.name;
+  const[tier]=tierOf(u.points);document.getElementById('tierline').textContent=tier+' • '+u.points+' puan';
+  document.getElementById('st-items').textContent=mine.length;
+  document.getElementById('st-lost').textContent=mine.filter(i=>i.status==='lost').length;
+  document.getElementById('st-found').textContent=mine.filter(i=>i.status==='found').length;
+  document.getElementById('myitems').innerHTML=mine.length?mine.map(itemCard).join(''):'<p class="mut">Henüz eşyan yok — alttan Asset ID oluştur.</p>';
+  renderInbox()}
+function renderProfil(){const u=me();const[tier,color]=tierOf(u.points);
+  document.getElementById('p-points').textContent=u.points;
+  document.getElementById('p-tier').textContent=tier.split(' ')[0];
+  document.getElementById('p-tier').style.color=color;
+  document.getElementById('p-badges').textContent=(u.badges||[]).length;
+  document.getElementById('tiercards').innerHTML=[['🥉 Bronze','0+','Temel özellikler'],['🥈 Silver','500+','Beta + premium özellikler'],['🥇 Gold','2.000+','Founder badge + lifetime premium'],['💎 Platinum','10.000+','VIP + özel etkinlikler']].map(t=>`<div class="log">${t[0]} — ${t[1]} puan: ${t[2]}</div>`).join('');
+  document.getElementById('actlog').innerHTML=db.log.slice(0,15).map(l=>`<div class="log">🕐 <b>${new Date(l.t).toLocaleTimeString('tr')}</b> — ${l.txt}</div>`).join('')||'<span class="mut">Henüz aktivite yok.</span>'}
+function renderAll(){renderPanel();renderProfil()}
+function resetAll(){if(confirm('Tüm demo verisi silinsin mi?')){localStorage.removeItem(DBKEY);location.reload()}}
+
+// oturum varsa direkt gir
+if(db.session&&db.users[db.session])enterApp();
+</script>
+</body>
+</html>
